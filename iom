@@ -1,10 +1,38 @@
 #!/usr/bin/env zx
 
-let bucket = 'll/bili'
-let vv = ""
-if (vv = argv.b) {
-  bucket = vv
+const Qs = require("querystring")
+
+const input = await stdin()
+const inputLines = input.split('\n').filter(e => e)
+
+async function stat() {
+  for (const loc of inputLines) {
+    await $`mc --json stat ${loc}`
+  }
 }
-const resp = await $`mc --json ls ${bucket}`
-echo(resp)
-echo(1)
+
+async function setTag(loc, tag) {
+  const resp = await $`mc tag list --json ${loc}`
+  if (tag === true) {
+    return echo(resp)
+  }
+  let { target } = JSON.parse(resp.stdout)
+  if (!target) {
+    target = {}
+  }
+  const tags = Qs.parse(tag)
+  Object.assign(target, tags)
+  await $`mc tag set --json ${loc} ${Qs.stringify(target)}`
+}
+
+async function main() {
+  if (argv.stat) {
+    await stat()
+  } else if (argv.tag) {
+    for (const loc of inputLines) {
+      await setTag(loc, argv.tag)
+    }
+  }
+}
+
+main()
