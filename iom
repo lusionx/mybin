@@ -1,0 +1,10 @@
+#!/usr/bin/env zx
+
+let bucket = 'll/bili'
+let vv = ""
+if (vv = argv.b) {
+  bucket = vv
+}
+const resp = await $`mc --json ls ${bucket}`
+echo(resp)
+echo(1)
