@@ -25,12 +25,44 @@ async function setTag(loc, tag) {
   await $`mc tag set --json ${loc} ${Qs.stringify(target)}`
 }
 
+function isFullPath(tar) {
+  return !!path.extname(tar)
+}
+
+async function copy(loc, tar) {
+  if (!isFullPath(loc)) {
+    return // source dir
+  }
+  if (path.extname(loc) === path.extname(tar)) {
+    // full path
+    await $`mc cp ${loc} ${tar}`
+    return
+  }
+
+  await $`mkdir -p ${tar}`
+  await $`mc cp ${loc} ${tar}`
+}
+
 async function main() {
   if (argv.stat) {
     await stat()
   } else if (argv.tag) {
     for (const loc of inputLines) {
       await setTag(loc, argv.tag)
+    }
+  } else if (argv.cp) {
+    const dist = argv.cp
+    if (isFullPath(dist)) {
+      await copy(inputLines[0], dist)
+    }
+    else {
+      for (const loc of inputLines) {
+        await copy(loc, dist)
+      }
+    }
+  } else {
+    for (const loc of inputLines) {
+      echo(loc)
     }
   }
 }
