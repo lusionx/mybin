@@ -43,6 +43,29 @@ async function copy(loc, tar) {
   await $`mc cp ${loc} ${tar}`
 }
 
+async function shareLink(loc) {
+  const res = await $`mc share download -E 48h --json ${loc}`
+  const { share } = JSON.parse(res.stdout)
+  return share
+}
+
+async function genHtml(lines) {
+  const aTags = []
+  for (const name of lines) {
+    const href = await shareLink(name)
+    aTags.push(`<li><a target="_blank" href="${href}">${name}</a></li>`)
+  }
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <ul>\n${aTags.join("\n")}\n</ul>
+  </body>
+</html>`
+}
+
 async function main() {
   if (argv.stat) {
     await stat()
@@ -59,6 +82,11 @@ async function main() {
       for (const loc of inputLines) {
         await copy(loc, dist)
       }
+    }
+  } else if (argv.html) {
+    const res = await genHtml(inputLines)
+    if (typeof argv.html === "string") {
+      fs.outputFileSync(argv.html, res)
     }
   } else {
     for (const loc of inputLines) {
