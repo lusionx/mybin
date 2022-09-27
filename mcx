@@ -51,17 +51,38 @@ async function shareLink(loc) {
 
 async function genHtml(lines) {
   const aTags = []
-  for (const name of lines) {
-    const href = await shareLink(name)
-    aTags.push(`<li><a target="_blank" href="${href}">${name}</a></li>`)
+  const mm = new Map()
+  lines.forEach(e => {
+    if (!isFullPath(e)) return
+    const i = e.lastIndexOf("/")
+    const head = e.slice(0, i)
+    const name = e.slice(i + 1)
+    const vv = mm.get(head)
+    if (vv) {
+      vv.push({ loc: e, name })
+    } else {
+      mm.set(head, [{ loc: e, name }])
+    }
+  })
+  for (const [head, vv] of mm) {
+    aTags.push(`<p class="h3">${head}</p>`)
+    aTags.push(`<div class="list-group">`)
+    for (const { loc, name } of vv) {
+      const href = await shareLink(loc)
+      aTags.push(`<a target="_blank" class="list-group-item list-group-item-action" href="${href}">${name}</a>`)
+    }
+    aTags.push("</div>")
   }
   return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.1/css/bootstrap.min.css" rel="stylesheet">
   </head>
   <body>
-    <ul>\n${aTags.join("\n")}\n</ul>
+    <div class="container">
+      ${aTags.join("\n")}
+    </div>
   </body>
 </html>`
 }
