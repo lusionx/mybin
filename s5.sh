@@ -1,1 +1,1 @@
-ssh -CN -D :8082 -v vu
+ssh -N -D :8082 -v us

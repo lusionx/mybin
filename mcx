@@ -1,79 +1,79 @@
 #!/usr/bin/env zx
 
-const Qs = require("querystring")
+const Qs = require("querystring");
 
-const input = await stdin()
-const inputLines = input.split('\n').filter(e => e)
+const input = await stdin();
+const inputLines = input.split("\n").filter((e) => e);
 
 async function stat() {
-  for (const loc of inputLines) {
-    await $`mc --json stat ${loc}`
-  }
+    for (const loc of inputLines) {
+        await $`mc --json stat ${loc}`;
+    }
 }
 
 async function setTag(loc, tag) {
-  const resp = await $`mc tag list --json ${loc}`
-  if (tag === true) {
-    return echo(resp)
-  }
-  let { target } = JSON.parse(resp.stdout)
-  if (!target) {
-    target = {}
-  }
-  const tags = Qs.parse(tag)
-  Object.assign(target, tags)
-  await $`mc tag set --json ${loc} ${Qs.stringify(target)}`
+    const resp = await $`mc tag list --json ${loc}`;
+    if (tag === true) {
+        return echo(resp);
+    }
+    let { target } = JSON.parse(resp.stdout);
+    if (!target) {
+        target = {};
+    }
+    const tags = Qs.parse(tag);
+    Object.assign(target, tags);
+    await $`mc tag set --json ${loc} ${Qs.stringify(target)}`;
 }
 
 function isFullPath(tar) {
-  return !!path.extname(tar)
+    return !!path.extname(tar);
 }
 
 async function copy(loc, tar) {
-  if (!isFullPath(loc)) {
-    return // source dir
-  }
-  if (path.extname(loc) === path.extname(tar)) {
-    // full path
-    await $`mc cp ${loc} ${tar}`
-    return
-  }
+    if (!isFullPath(loc)) {
+        return; // source dir
+    }
+    if (path.extname(loc) === path.extname(tar)) {
+        // full path
+        await $`mc cp ${loc} ${tar}`;
+        return;
+    }
 
-  await $`mkdir -p ${tar}`
-  await $`mc cp ${loc} ${tar}`
+    await $`mkdir -p ${tar}`;
+    await $`mc cp ${loc} ${tar}`;
 }
 
 async function shareLink(loc) {
-  const res = await $`mc share download -E 48h --json ${loc}`
-  const { share } = JSON.parse(res.stdout)
-  return share
+    const res = await $`mc share download -E 48h --json ${loc}`;
+    const { share } = JSON.parse(res.stdout);
+    return share;
 }
 
 async function genHtml(lines) {
-  const aTags = []
-  const mm = new Map()
-  lines.forEach(e => {
-    if (!isFullPath(e)) return
-    const i = e.lastIndexOf("/")
-    const head = e.slice(0, i)
-    const name = e.slice(i + 1)
-    const vv = mm.get(head)
-    if (vv) {
-      vv.push({ loc: e, name })
-    } else {
-      mm.set(head, [{ loc: e, name }])
+    const aTags = [];
+    const mm = new Map();
+    lines.forEach((e) => {
+        if (!isFullPath(e)) return;
+        const i = e.lastIndexOf("/");
+        const head = e.slice(0, i);
+        const name = e.slice(i + 1);
+        const vv = mm.get(head);
+        if (vv) {
+            vv.push({ loc: e, name });
+        } else {
+            mm.set(head, [{ loc: e, name }]);
+        }
+    });
+    for (const [head, vv] of mm) {
+        aTags.push(`<p class="h3">${head}</p>`);
+        aTags.push(`<div class="list-group">`);
+        for (const { loc, name } of vv) {
+            const href = await shareLink(loc);
+            aTags.push(`<a target="_blank" class="list-group-item list-group-item-action" href="${href}">${name}</a>`);
+        }
+        aTags.push("</div>");
     }
-  })
-  for (const [head, vv] of mm) {
-    aTags.push(`<p class="h3">${head}</p>`)
-    aTags.push(`<div class="list-group">`)
-    for (const { loc, name } of vv) {
-      const href = await shareLink(loc)
-      aTags.push(`<a target="_blank" class="list-group-item list-group-item-action" href="${href}">${name}</a>`)
-    }
-    aTags.push("</div>")
-  }
-  return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
@@ -84,36 +84,35 @@ async function genHtml(lines) {
       ${aTags.join("\n")}
     </div>
   </body>
-</html>`
+</html>`;
 }
 
 async function main() {
-  if (argv.stat) {
-    await stat()
-  } else if (argv.tag) {
-    for (const loc of inputLines) {
-      await setTag(loc, argv.tag)
+    if (argv.stat) {
+        await stat();
+    } else if (argv.tag) {
+        for (const loc of inputLines) {
+            await setTag(loc, argv.tag);
+        }
+    } else if (argv.cp) {
+        const dist = argv.cp;
+        if (isFullPath(dist)) {
+            await copy(inputLines[0], dist);
+        } else {
+            for (const loc of inputLines) {
+                await copy(loc, dist);
+            }
+        }
+    } else if (argv.html) {
+        const res = await genHtml(inputLines);
+        if (typeof argv.html === "string") {
+            fs.outputFileSync(argv.html, res);
+        }
+    } else {
+        for (const loc of inputLines) {
+            echo(loc);
+        }
     }
-  } else if (argv.cp) {
-    const dist = argv.cp
-    if (isFullPath(dist)) {
-      await copy(inputLines[0], dist)
-    }
-    else {
-      for (const loc of inputLines) {
-        await copy(loc, dist)
-      }
-    }
-  } else if (argv.html) {
-    const res = await genHtml(inputLines)
-    if (typeof argv.html === "string") {
-      fs.outputFileSync(argv.html, res)
-    }
-  } else {
-    for (const loc of inputLines) {
-      echo(loc)
-    }
-  }
 }
 
-main()
+main();
